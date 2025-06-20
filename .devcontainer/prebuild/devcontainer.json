@@ -1,5 +1,5 @@
 {
-  "image": "ghcr.io/miguelrodo/r-workflow-main",
+  "image": "ghcr.io/miguelrodo/comprworkflow-main",
   "customizations": {
     "vscode": {
       "extensions": [
