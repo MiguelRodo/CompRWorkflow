@@ -109,6 +109,7 @@ parse_repo_line() {
 
 # --- run one repo's run.sh if present ---
 FOUND_ANY=false
+# --- run one repo's run.sh if present ---
 run_one_repo() {
   local repo_spec="$1"
   local target_dir="$2"
@@ -131,11 +132,12 @@ run_one_repo() {
     return
   fi
 
+  # compute the repo directory under the current working directory
   local dest
   if [ -n "$target_dir" ]; then
-    dest="$start_dir/../$target_dir/$folder"
+    dest="$start_dir/$target_dir/$folder"
   else
-    dest="$start_dir/../$folder"
+    dest="$start_dir/$folder"
   fi
 
   if [ -d "$dest" ]; then
@@ -143,6 +145,7 @@ run_one_repo() {
     if [ -f "$script" ]; then
       echo "⏵ $folder: run.sh found"
       FOUND_ANY=true
+
       if $DRY_RUN; then
         echo "  DRY-RUN: would chmod +x and execute $script"
       else
@@ -159,6 +162,7 @@ run_one_repo() {
     exit 1
   fi
 }
+
 
 # --- main loop ---
 main() {
