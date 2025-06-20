@@ -26,7 +26,24 @@ Examples:
 EOF
 }
 
-# Global Python code (only written once)
+# --- Update workspace with jq ---
+update_with_jq() {
+  local workspace_file="$1"
+  local paths_list="$2"
+  local folders_json
+  folders_json=$(printf '%s\n' "$paths_list" | jq -R . | jq -s '[.[] | {path: .}]')
+  if [ ! -f "$workspace_file" ]; then
+    jq --null-input --argjson folders "$folders_json" '{folders: $folders}' > "$workspace_file"
+  else
+    tmp="$(mktemp)" \
+      && jq … > "$tmp" \
+      && mv "$tmp" "$workspace_file" \
+      || { rm -f "$tmp"; exit 1; }
+  fi
+  echo "Updated '$workspace_file' with jq."
+}
+
+# --- Update workspace with Python ---
 PYTHON_UPDATE_SCRIPT=$(cat <<'PYCODE'
 import sys, json, os
 ws = sys.argv[1]
@@ -42,6 +59,85 @@ with open(ws, 'w') as f:
     f.write('\n')
 PYCODE
 )
+
+update_with_python() {
+  local workspace_file="$1"
+  local paths_list="$2"
+  PATHS_LIST="$paths_list" python - "$workspace_file" <<<"$PYTHON_UPDATE_SCRIPT"
+  echo "Updated '$workspace_file' with Python."
+}
+
+update_with_python3() {
+  local workspace_file="$1"
+  local paths_list="$2"
+  PATHS_LIST="$paths_list" python3 - "$workspace_file" <<<"$PYTHON_UPDATE_SCRIPT"
+  echo "Updated '$workspace_file' with Python3."
+}
+
+update_with_py() {
+  local workspace_file="$1"
+  local paths_list="$2"
+  PATHS_LIST="$paths_list" py - "$workspace_file" <<<"$PYTHON_UPDATE_SCRIPT"
+  echo "Updated '$workspace_file' with py launcher."
+}
+
+
+# --- Update workspace with Rscript (jsonlite) ---
+RSCRIPT_UPDATE=$(cat <<'ENDRSCRIPT'
+args <- commandArgs(trailingOnly=TRUE)
+ws <- args[1]
+
+# Read and clean paths list
+paths <- strsplit(Sys.getenv("PATHS_LIST"), "\n", fixed=TRUE)[[1]]
+paths <- paths[nzchar(paths)]
+folders <- lapply(paths, function(p) list(path = p))
+
+# Determine a writable user library
+user_lib <- Sys.getenv("R_LIBS_USER", unset = "")
+if (!nzchar(user_lib)) {
+  user_lib <- file.path("~", "R", "library")
+}
+user_lib <- path.expand(user_lib)
+if (!dir.exists(user_lib)) dir.create(user_lib, recursive = TRUE, showWarnings = FALSE)
+
+# Install jsonlite if missing, into the user library
+if (!requireNamespace("jsonlite", quietly = TRUE)) {
+  install.packages(
+    "jsonlite",
+    repos = "https://cloud.r-project.org",
+    lib   = user_lib
+  )
+}
+
+# Load or initialize existing workspace JSON
+if (file.exists(ws)) {
+  data <- tryCatch(jsonlite::fromJSON(ws), error = function(e) list())
+} else {
+  data <- list()
+}
+
+# Overwrite / set the folders element
+data$folders <- folders
+
+# Write out prettified JSON
+jsonlite::write_json(
+  data,
+  path        = ws,
+  pretty      = TRUE,
+  auto_unbox  = TRUE
+)
+ENDRSCRIPT
+)
+
+update_with_rscript() {
+  local workspace_file="$1"
+  local paths_list="$2"
+  PATHS_LIST="$paths_list" Rscript -e "$RSCRIPT_UPDATE" "$workspace_file"
+  echo "Updated '$workspace_file' with Rscript."
+}
+
+
+
 
 get_workspace_file() {
   # Prefer lower-case, but use CamelCase if that's all there is
@@ -99,27 +195,22 @@ build_paths_list() {
 update_workspace_file() {
   local workspace_file="$1"
   local paths_list="$2"
-  local folders_json
+  [ -n "$workspace_file" ] || { echo "update_workspace_file: missing workspace_file" >&2; exit 1; }
+  [ -n "$paths_list" ]   || { echo "update_workspace_file: missing paths_list"   >&2; exit 1; }
+
+
   if command -v jq >/dev/null 2>&1; then
-    folders_json=$(printf '%s\n' "$paths_list" | jq -R . | jq -s '[.[] | {path: .}]')
-    if [ ! -f "$workspace_file" ]; then
-      jq --null-input --argjson folders "$folders_json" '{folders: $folders}' > "$workspace_file"
-    else
-      tmp="$(mktemp)"
-      jq --argjson folders "$folders_json" '.folders = $folders' "$workspace_file" > "$tmp" && mv "$tmp" "$workspace_file"
-    fi
-    echo "Updated '$workspace_file' with jq."
+    update_with_jq "$workspace_file" "$paths_list"
   elif command -v python >/dev/null 2>&1; then
-    PATHS_LIST="$paths_list" python - "$workspace_file" <<<"$PYTHON_UPDATE_SCRIPT"
-    echo "Updated '$workspace_file' with Python."
+    update_with_python "$workspace_file" "$paths_list"
   elif command -v python3 >/dev/null 2>&1; then
-    PATHS_LIST="$paths_list" python3 - "$workspace_file" <<<"$PYTHON_UPDATE_SCRIPT"
-    echo "Updated '$workspace_file' with Python3."
+    update_with_python3 "$workspace_file" "$paths_list"
   elif command -v py >/dev/null 2>&1; then
-    PATHS_LIST="$paths_list" py - "$workspace_file" <<<"$PYTHON_UPDATE_SCRIPT"
-    echo "Updated '$workspace_file' with py launcher."
+    update_with_py "$workspace_file" "$paths_list"
+  elif command -v Rscript >/dev/null 2>&1; then
+    update_with_rscript "$workspace_file" "$paths_list"
   else
-    echo "Error: none of jq, python, python3 or py found. Cannot update workspace." >&2
+    echo "Error: none of jq, python, python3, py, or Rscript found. Cannot update workspace." >&2
     exit 1
   fi
 }
