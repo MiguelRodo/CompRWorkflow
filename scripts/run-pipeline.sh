@@ -32,7 +32,8 @@ where repo_spec is owner/repo[@branch] or https://host/owner/repo[@branch]
 and target_directory is optional (relative to this script’s parent directory).
 
 If a folder exists and contains run.sh, this script will make it executable
-and then run it.  One failing run.sh stops the process.
+and then run it.  One failing run.sh stops the process.  If no run.sh is found
+in any repository, you’ll get a final notice.
 EOF
 }
 
@@ -101,6 +102,7 @@ parse_repo_line() {
 }
 
 # --- run one repo's run.sh if present ---
+FOUND_ANY=false
 run_one_repo() {
   local repo_spec="$1"
   local target_dir="$2"
@@ -134,6 +136,7 @@ run_one_repo() {
     local script="$dest/run.sh"
     if [ -f "$script" ]; then
       echo "⏵ $folder: run.sh found"
+      FOUND_ANY=true
       if $DRY_RUN; then
         echo "  DRY-RUN: would chmod +x and execute $script"
       else
@@ -166,6 +169,10 @@ main() {
     [ -z "$repo_spec" ] && continue
     run_one_repo "$repo_spec" "$target_dir" "$start_dir"
   done < "$REPOS_FILE"
+
+  if [ "$FOUND_ANY" = false ]; then
+    echo "ℹ️  No run.sh found in any of the repositories."
+  fi
 }
 
 main "$@"
