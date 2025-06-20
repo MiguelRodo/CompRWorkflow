@@ -1,0 +1,8 @@
+# ignore CDE and VS Code workspace files
+
+^\.devcontainer$
+^\.devcontainer/
+^repos-to-clone\.list$
+^repos-to-clone-xethub\.list$
+^\.Renviron$
+^EntireProject\.code-workspace$

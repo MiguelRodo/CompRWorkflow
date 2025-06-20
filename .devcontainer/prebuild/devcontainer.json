@@ -1,0 +1,12 @@
+{
+  "image": "ghcr.io/miguelrodo/comptemplate-main",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "quarto.quarto",
+        "REditorSupport.r",
+        "mathematic.vscode-pdf"
+      ]
+    }
+  }
+}
