@@ -78,10 +78,16 @@ parse_args() {
 should_process() {
   local name="$1"
   if [ "${#INCLUDE[@]}" -gt 0 ]; then
-    [[ " ${INCLUDE[*]} " =~ " $name " ]] || return 1
+    local found=0
+    for inc in "${INCLUDE[@]}"; do
+      [ "$inc" = "$name" ] && found=1
+    done
+    [ $found -eq 1 ] || return 1
   fi
   if [ "${#EXCLUDE[@]}" -gt 0 ]; then
-    [[ " ${EXCLUDE[*]} " =~ " $name " ]] && return 1
+    for exc in "${EXCLUDE[@]}"; do
+      [ "$exc" = "$name" ] && return 1
+    done
   fi
   return 0
 }
