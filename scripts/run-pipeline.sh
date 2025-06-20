@@ -13,6 +13,7 @@ check_prerequisites() {
   done
 }
 
+# --- Usage message ---
 usage() {
   cat <<EOF
 Usage: $0 [options]
@@ -32,7 +33,7 @@ where repo_spec is owner/repo[@branch] or https://host/owner/repo[@branch]
 and target_directory is optional (relative to this script’s parent directory).
 
 If a folder exists and contains run.sh, this script will make it executable
-and then run it.  One failing run.sh stops the process.  If no run.sh is found
+and then run it. One failing run.sh stops the process. If no run.sh is found
 in any repository, you’ll get a final notice.
 EOF
 }
@@ -109,11 +110,12 @@ parse_repo_line() {
 
 # --- run one repo's run.sh if present ---
 FOUND_ANY=false
-# --- run one repo's run.sh if present ---
 run_one_repo() {
   local repo_spec="$1"
   local target_dir="$2"
   local start_dir="$3"
+  local parent_dir
+  parent_dir="$(dirname "$start_dir")"
 
   # strip branch
   local repo_url="${repo_spec%@*}"
@@ -132,12 +134,12 @@ run_one_repo() {
     return
   fi
 
-  # compute the repo directory under the current working directory
+  # compute the repo directory as sibling under parent_dir
   local dest
   if [ -n "$target_dir" ]; then
-    dest="$start_dir/$target_dir/$folder"
+    dest="$parent_dir/$target_dir/$folder"
   else
-    dest="$start_dir/$folder"
+    dest="$parent_dir/$folder"
   fi
 
   if [ -d "$dest" ]; then
@@ -162,7 +164,6 @@ run_one_repo() {
     exit 1
   fi
 }
-
 
 # --- main loop ---
 main() {
