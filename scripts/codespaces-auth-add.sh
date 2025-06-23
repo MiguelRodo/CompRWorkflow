@@ -34,7 +34,9 @@ EOF
 }
 
 # Globals
-REPOS_FILE="repos-to-clone.list"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPOS_FILE="$PROJECT_ROOT/repos-to-clone.list"
 REPOS_OVERRIDE=""
 PERMISSIONS="default"
 DRY_RUN=0
@@ -141,15 +143,59 @@ make_jq_arg() {
 
 # Update with jq
 update_with_jq() {
-  local file="$1" tmp newArg
-  newArg=$(make_jq_arg)
-  tmp=$(mktemp)
-  jq --argjson newRepos "$newArg" '
-    .customizations.codespaces.repositories |=
-      ((. // {}) + $newRepos)
-  ' "$file" > "$tmp" && mv "$tmp" "$file"
-  echo "Updated $file with jq"
+  local workspace_file="$1"
+  local repos_list="${2:-}"
+
+  # Build a JSON array of non-blank lines in $repos_list
+  local repos_array
+  repos_array=$(
+    printf '%s\n' "$repos_list" | \
+    jq -R 'select(length > 0)' | \
+    jq -s .
+  )
+
+  # Build the per-repo permissions object
+  local repos_obj
+  repos_obj=$(
+    jq -n --argjson arr "$repos_array" '
+      reduce $arr[] as $repo ({}; 
+        . + {
+          ($repo): {
+            permissions: {
+              actions:  "write",
+              contents: "write",
+              packages: "read",
+              workflows:"write"
+            }
+          }
+        }
+      )
+    '
+  )
+
+  # Merge (or create) into your devcontainer.json
+  if [ ! -f "$workspace_file" ]; then
+    jq -n --argjson repos "$repos_obj" '
+      {
+        customizations: {
+          codespaces: {
+            repositories: $repos
+          }
+        }
+      }
+    ' > "$workspace_file"
+  else
+    tmp=$(mktemp)
+    jq --argjson repos "$repos_obj" '
+      .customizations.codespaces.repositories 
+        |= ( (. // {}) + $repos )
+    ' "$workspace_file" > "$tmp" \
+      && mv "$tmp" "$workspace_file"
+  fi
+
+  echo "Updated '$workspace_file' with jq."
 }
+
 
 # Python fallback
 PY_UPDATE=$(cat <<'PY'
@@ -183,6 +229,7 @@ main() {
   parse_args "$@"
   build_raw
   filter_valid
+  echo "DEBUG: VALID_REPOS=(${VALID_REPOS[*]})" >&2
   [ -f "$DEVFILE" ] || { echo "No devcontainer.json: $DEVFILE" >&2; exit 1; }
   if [ "$DRY_RUN" -eq 1 ]; then
     update_with_jq "$DEVFILE" && cat "$DEVFILE"

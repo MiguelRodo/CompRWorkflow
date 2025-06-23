@@ -5,34 +5,37 @@
     "context": ".."
   },
   "features": {
-  	"ghcr.io/MiguelRodo/DevContainerFeatures/repos:1": {},
+    "ghcr.io/MiguelRodo/DevContainerFeatures/repos:1": {},
     "ghcr.io/MiguelRodo/DevContainerFeatures/config-r:2": {
       "debug": true,
       "debugRenv": true
     },
-		"ghcr.io/rocker-org/devcontainer-features/r-rig:1": {
-			"installDevTools": false,
-			"installREnv": true,
-			"installRadian": true,
-			"version": "none",
-			"pakVersion": "auto",
-			"vscodeRSupport": "minimal",
-			"pandocVersion": "auto"
-		},
-		"ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-			"packages": "xvfb,vim,libcurl4-openssl-dev,libsecret-1-dev"
-		},
+    "ghcr.io/rocker-org/devcontainer-features/r-rig:1": {
+      "installDevTools": false,
+      "installREnv": true,
+      "installRadian": true,
+      "version": "none",
+      "pakVersion": "auto",
+      "vscodeRSupport": "minimal",
+      "pandocVersion": "auto"
+    },
+    "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+      "packages": "xvfb,vim,libcurl4-openssl-dev,libsecret-1-dev"
+    },
     "ghcr.io/rocker-org/devcontainer-features/quarto-cli:1": {
-			"installTinyTex": true
-		}
+      "installTinyTex": true
+    }
   },
   "customizations": {
     "vscode": {
       "extensions": [
-				"quarto.quarto",
-				"REditorSupport.r",
-				"mathematic.vscode-pdf"
+        "quarto.quarto",
+        "REditorSupport.r",
+        "mathematic.vscode-pdf"
       ]
+    },
+    "codespaces": {
+      "repositories": {}
     }
   }
 }
