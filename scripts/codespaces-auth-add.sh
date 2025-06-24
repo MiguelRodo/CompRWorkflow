@@ -203,35 +203,56 @@ update_with_jq(){
   echo "Updated '$file' with jq."
 }
 
-# ——— Python (or python3 / py) fallback —————————————————————————————
-#   Usage: update_with_python <devfile> <python-cmd>
+# ——— Python (or python3 / py) fallback, JSONC-aware + trailing-comma strip —————
+# Usage: update_with_python <devfile> <python-cmd>
 update_with_python(){
   local file="$1"
   local py_cmd="${2:-python}"
   local arr_json repos_obj
 
-  # Build the array & object exactly as jq would
+  # 1) Build the JSON array & object as jq would
   arr_json=$(build_jq_array)
   repos_obj=$(build_jq_obj "$arr_json")
 
-  # Invoke the chosen python interpreter
-  "$py_cmd" - "$file" <<PYCODE
-import json, sys
-new = $repos_obj
-try:
-    data = json.load(open(sys.argv[1]))
-except:
-    data = {}
-cs = data.get('customizations', {})
-cp = cs.get('codespaces', {})
-repos = cp.get('repositories', {})
+  # 2) Export it so the Python process can see it
+  export REPOS_JSON="$repos_obj"
+
+  # 3) Run Python: strip comments & trailing commas, parse, merge, emit JSON
+  "$py_cmd" - "$file" <<'PYCODE'
+import sys, json, re, os
+
+fname = sys.argv[1]
+text = open(fname, 'r').read()
+
+# Remove // line comments
+text = re.sub(r'//.*$', '', text, flags=re.MULTILINE)
+# Remove /* ... */ block comments
+text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+# Remove trailing commas before } or ]
+text = re.sub(r',\s*([}\]])', r'\1', text)
+
+# Now parse clean JSON
+data = json.loads(text)
+
+# Load the new repos block from the env var
+new = json.loads(os.environ['REPOS_JSON'])
+
+# Merge into data
+cs = data.setdefault('customizations', {})
+cp = cs.setdefault('codespaces', {})
+repos = cp.setdefault('repositories', {})
 repos.update(new)
-cp['repositories'] = repos
-cs['codespaces'] = cp
-data['customizations'] = cs
+
+# Output the merged JSON
 print(json.dumps(data, indent=2))
 PYCODE
 }
+
+# In your update_devfile(), make sure you capture that stdout into the file:
+# update_with_python "$DEVFILE" "$tool" > "$DEVFILE"
+# echo "Updated '$DEVFILE' with $tool."
+
+
 
 
 # ——— Rscript fallback (env-var merge, no duplicates) —————————————————————
@@ -306,11 +327,14 @@ update_devfile(){
       ;;
     python|python3|py)
       if [ "$DRY_RUN" -eq 1 ]; then
-        # just print to stdout
+        # In dry-run, just print what Python would output
         update_with_python "$DEVFILE" "$tool"
       else
-        # overwrite the file in-place
-        update_with_python "$DEVFILE" "$tool" > "$DEVFILE"
+        # Safely write via a temporary file, then move into place
+        tmp="$(mktemp)"
+        update_with_python "$DEVFILE" "$tool" > "$tmp"
+        mv "$tmp" "$DEVFILE"
+        echo "Updated '$DEVFILE' with $tool."
       fi
       ;;
     Rscript)
