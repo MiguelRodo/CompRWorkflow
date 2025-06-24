@@ -29,35 +29,6 @@
   "customizations": {
     "vscode": {
       "extensions": ["quarto.quarto", "REditorSupport.r", "mathematic.vscode-pdf"]
-    },
-    "codespaces": {
-      "repositories": {
-        "MiguelRodo/r-workflow": {
-          "permissions": {
-            "contents": "write"
-          }
-        },
-        "SATVILab/dotfiles": {
-          "permissions": {
-            "contents": "write"
-          }
-        },
-        "SATVILab/CompTemplate": {
-          "permissions": {
-            "contents": "write"
-          }
-        },
-        "MiguelRodo/DevContainerFeatures": {
-          "permissions": {
-            "contents": "write"
-          }
-        },
-        "SATVILab/actions": {
-          "permissions": {
-            "contents": "write"
-          }
-        }
-      }
     }
   }
 }
