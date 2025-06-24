@@ -31,15 +31,27 @@ update_with_jq() {
   local workspace_file="$1"
   local paths_list="$2"
   local folders_json
-  folders_json=$(printf '%s\n' "$paths_list" | jq -R . | jq -s '[.[] | {path: .}]')
+
+  # build an array of {path: "..."} objects
+  folders_json=$(printf '%s\n' "$paths_list" \
+    | jq -R . \
+    | jq -s '[ .[] | { path: . } ]'
+  )
+
   if [ ! -f "$workspace_file" ]; then
-    jq --null-input --argjson folders "$folders_json" '{folders: $folders}' > "$workspace_file"
+    # create a brand-new workspace file
+    jq --null-input --argjson folders "$folders_json" \
+      '{ folders: $folders }' \
+      > "$workspace_file"
   else
-    tmp="$(mktemp)" \
-      && jq … > "$tmp" \
-      && mv "$tmp" "$workspace_file" \
-      || { rm -f "$tmp"; exit 1; }
+    # merge into existing file: set .folders = $folders
+    tmp="$(mktemp)"
+    jq --argjson folders "$folders_json" \
+       '.folders = $folders' \
+       "$workspace_file" > "$tmp" \
+      && mv "$tmp" "$workspace_file"
   fi
+
   echo "Updated '$workspace_file' with jq."
 }
 
