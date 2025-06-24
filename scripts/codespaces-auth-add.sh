@@ -16,6 +16,7 @@ PERMISSIONS="default"    # default | all | contents
 DRY_RUN=0
 RAW_LIST=""
 VALID_LIST=""
+FORCE_TOOL=""   # if set via -t|--tool (one of jq, python, python3, py, rscript)
 
 # ——— Usage ————————————————————————————————————————————————
 usage(){
@@ -23,15 +24,15 @@ usage(){
 Usage: $0 [options]
 
 Options:
-  -f, --file <path>       Read repos from <path> (default: repos-to-clone.list)
-  -r, --repo <a,b,c…>     Comma-separated repos (owner/repo or https://github.com/owner/repo)
-                          Overrides the file.
-  --permissions all       Use "permissions":"write-all"
-  --permissions contents  Use "permissions":{"contents":"write"}
-  -n, --dry-run           Print resulting devcontainer.json to stdout
-  -h, --help              Show this help and exit
+  -f, --file <path>        Read repos from <path> (default: repos-to-clone.list)
+  -r, --repo <a,b,c…>      Comma-separated repos; overrides the file
+  --permissions all        Use "permissions":"write-all"
+  --permissions contents   Use "permissions":{"contents":"write"}
+  -t, --tool <name>        Force update mechanism: jq, python, python3, py, or Rscript (if rscript provided, it will be used as Rscript)
+  -n, --dry-run            Print resulting devcontainer.json to stdout
+  -h, --help               Show this help and exit
 
-File lines may end in .git, @branch or include a target directory; these parts are ignored.
+File lines may end in .git, @branch, or include a target directory; these parts are ignored.
 Lines starting with ‘#’ or blank lines are skipped.
 EOF
   exit 1
@@ -56,37 +57,37 @@ parse_args(){
   while [ $# -gt 0 ]; do
     case "$1" in
       -f|--file)
-        shift
-        [ $# -gt 0 ] || { echo "Error: Missing file after -f" >&2; usage; }
-        REPOS_FILE="$1"
-        shift
+        shift; [ $# -gt 0 ] || { echo "Error: Missing file" >&2; usage; }
+        REPOS_FILE="$1"; shift
         ;;
       -r|--repo)
-        shift
-        [ $# -gt 0 ] || { echo "Error: Missing repo list after -r" >&2; usage; }
-        REPOS_OVERRIDE="$1"
-        shift
+        shift; [ $# -gt 0 ] || { echo "Error: Missing repo list" >&2; usage; }
+        REPOS_OVERRIDE="$1"; shift
         ;;
       --permissions)
-        shift
-        [ $# -gt 0 ] || { echo "Error: Missing type after --permissions" >&2; usage; }
-        case "$1" in
-          all)      PERMISSIONS="all" ;;
-          contents) PERMISSIONS="contents" ;;
+        shift; [ $# -gt 0 ] || { echo "Error: Missing type" >&2; usage; }
+        case "$1" in all) PERMISSIONS="all" ;; contents) PERMISSIONS="contents" ;;
           *) echo "Error: Unknown permissions: $1" >&2; usage ;;
         esac
         shift
         ;;
-      -n|--dry-run)
-        DRY_RUN=1
+      -t|--tool)
+        shift; [ $# -gt 0 ] || { echo "Error: Missing tool name" >&2; usage; }
+        case "$1" in
+          jq|python|python3|py|rscript|Rscript) 
+            [ "$1" = "rscript" ] && FORCE_TOOL="Rscript" || FORCE_TOOL="$1"
+            ;;          *) echo "Error: Unsupported tool: $1" >&2; usage ;;
+        esac
         shift
+        ;;
+      -n|--dry-run)
+        DRY_RUN=1; shift
         ;;
       -h|--help)
         usage
         ;;
       *)
-        echo "Error: Unknown option: $1" >&2
-        usage
+        echo "Error: Unknown option: $1" >&2; usage
         ;;
     esac
   done
@@ -202,15 +203,19 @@ update_with_jq(){
   echo "Updated '$file' with jq."
 }
 
-# ——— Python fallback ——————————————————————————————————————
+# ——— Python (or python3 / py) fallback —————————————————————————————
+#   Usage: update_with_python <devfile> <python-cmd>
 update_with_python(){
   local file="$1"
+  local py_cmd="${2:-python}"
   local arr_json repos_obj
 
+  # Build the array & object exactly as jq would
   arr_json=$(build_jq_array)
   repos_obj=$(build_jq_obj "$arr_json")
 
-  python - "$file" <<PYCODE
+  # Invoke the chosen python interpreter
+  "$py_cmd" - "$file" <<PYCODE
 import json, sys
 new = $repos_obj
 try:
@@ -228,64 +233,95 @@ print(json.dumps(data, indent=2))
 PYCODE
 }
 
-# ——— Rscript fallback ——————————————————————————————————————
+
+# ——— Rscript fallback (env-var merge, no duplicates) —————————————————————
 update_with_rscript(){
   local file="$1"
   local arr_json repos_obj
+
+  # Build the same JSON array & object as jq
   arr_json=$(build_jq_array)
   repos_obj=$(build_jq_obj "$arr_json")
 
-  Rscript - <<RSCRIPT "$file"
+  # Pass the JSON via env var to Rscript
+  REPOS_OBJ="$repos_obj" Rscript --vanilla - "$file" <<'RSCRIPT'
+library(jsonlite)
+
+# Read args
 args <- commandArgs(trailingOnly=TRUE)
 file <- args[1]
-new <- jsonlite::fromJSON('$repos_obj')
+
+# Parse the new repos block from the environment
+repos_json <- Sys.getenv("REPOS_OBJ")
+new <- fromJSON(repos_json)
+
+# Load or initialise existing JSON
 if (file.exists(file)) {
-  data <- tryCatch(jsonlite::fromJSON(file), error=function(e) list())
-} else data <- list()
-cs <- data\$customizations %||% list()
-cp <- cs\$codespaces %||% list()
-repos <- cp\$repositories %||% list()
-repos <- c(repos, new)
-cp\$repositories <- repos
-cs\$codespaces <- cp
-data\$customizations <- cs
-jsonlite::write_json(data, file, pretty=TRUE, auto_unbox=TRUE)
+  data <- tryCatch(fromJSON(file), error = function(e) list())
+} else {
+  data <- list()
+}
+
+# Drill into nested lists, creating if missing
+cs <- data$customizations;    if (is.null(cs))    cs <- list()
+cp <- cs$codespaces;         if (is.null(cp))    cp <- list()
+repos <- cp$repositories;    if (is.null(repos)) repos <- list()
+
+# Merge by name (overwrite existing, no .1 duplicates)
+repos[names(new)] <- new
+
+# Rebuild and write back
+cp$repositories     <- repos
+cs$codespaces       <- cp
+data$customizations <- cs
+
+write_json(data, file, pretty = TRUE, auto_unbox = TRUE)
 RSCRIPT
+
+  echo "Updated '$file' with Rscript."
 }
 
 # ——— Dispatch to the first available tool ——————————————————————
 update_devfile(){
-  if [ "$DRY_RUN" -eq 1 ]; then
-    if command -v jq >/dev/null; then
-      update_with_jq "$DEVFILE"
-    elif command -v python >/dev/null; then
-      update_with_python "$DEVFILE"
-    elif command -v python3 >/dev/null; then
-      update_with_python "$DEVFILE"
-    elif command -v py >/dev/null; then
-      update_with_python "$DEVFILE"
-    elif command -v Rscript >/dev/null; then
-      update_with_rscript "$DEVFILE"
-    else
-      echo "Error: No JSON tool found" >&2
-      exit 1
-    fi
+  local tool=""
+
+  # 1) Pick the forced tool or auto-detect
+  if [ -n "$FORCE_TOOL" ]; then
+    command -v "$FORCE_TOOL" >/dev/null 2>&1 \
+      || { echo "Error: forced tool '$FORCE_TOOL' not found." >&2; exit 1; }
+    tool="$FORCE_TOOL"
   else
-    # In-place write
-    if command -v jq >/dev/null; then
+    for candidate in jq python python3 py Rscript; do
+      if command -v "$candidate" >/dev/null 2>&1; then
+        tool="$candidate"; break
+      fi
+    done
+    [ -n "$tool" ] || { echo "Error: No JSON tool found." >&2; exit 1; }
+  fi
+
+  # 2) Invoke the updater
+  case "$tool" in
+    jq)
       update_with_jq "$DEVFILE"
-    elif command -v python >/dev/null; then
-      update_with_python "$DEVFILE" > "$DEVFILE"
-    elif command -v python3 >/dev/null; then
-      update_with_python "$DEVFILE" > "$DEVFILE"
-    elif command -v py >/dev/null; then
-      update_with_python "$DEVFILE" > "$DEVFILE"
-    elif command -v Rscript >/dev/null; then
+      ;;
+    python|python3|py)
+      if [ "$DRY_RUN" -eq 1 ]; then
+        # just print to stdout
+        update_with_python "$DEVFILE" "$tool"
+      else
+        # overwrite the file in-place
+        update_with_python "$DEVFILE" "$tool" > "$DEVFILE"
+      fi
+      ;;
+    Rscript)
       update_with_rscript "$DEVFILE"
-    else
-      echo "Error: No JSON tool found" >&2
-      exit 1
-    fi
+      ;;
+  esac
+
+  # 3) In dry-run mode, show the result
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "=== DRY-RUN OUTPUT ==="
+    cat "$DEVFILE"
   fi
 }
 

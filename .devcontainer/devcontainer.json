@@ -20,7 +20,7 @@
       "pandocVersion": "auto"
     },
     "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-      "packages": "xvfb,vim,libcurl4-openssl-dev,libsecret-1-dev"
+      "packages": "xvfb,vim,libcurl4-openssl-dev,libsecret-1-dev,jq"
     },
     "ghcr.io/rocker-org/devcontainer-features/quarto-cli:1": {
       "installTinyTex": true
@@ -28,52 +28,33 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "quarto.quarto",
-        "REditorSupport.r",
-        "mathematic.vscode-pdf"
-      ]
+      "extensions": ["quarto.quarto", "REditorSupport.r", "mathematic.vscode-pdf"]
     },
     "codespaces": {
       "repositories": {
         "MiguelRodo/r-workflow": {
           "permissions": {
-            "actions": "write",
-            "contents": "write",
-            "packages": "read",
-            "workflows": "write"
+            "contents": "write"
           }
         },
         "SATVILab/dotfiles": {
           "permissions": {
-            "actions": "write",
-            "contents": "write",
-            "packages": "read",
-            "workflows": "write"
+            "contents": "write"
           }
         },
         "SATVILab/CompTemplate": {
           "permissions": {
-            "actions": "write",
-            "contents": "write",
-            "packages": "read",
-            "workflows": "write"
+            "contents": "write"
           }
         },
         "MiguelRodo/DevContainerFeatures": {
           "permissions": {
-            "actions": "write",
-            "contents": "write",
-            "packages": "read",
-            "workflows": "write"
+            "contents": "write"
           }
         },
         "SATVILab/actions": {
           "permissions": {
-            "actions": "write",
-            "contents": "write",
-            "packages": "read",
-            "workflows": "write"
+            "contents": "write"
           }
         }
       }
