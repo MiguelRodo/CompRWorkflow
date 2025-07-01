@@ -47,9 +47,12 @@ if [ -z "${GH_TOKEN-}" ]; then
     )
   fi
 
-  GH_USER=$(printf '%s\n' "$creds" | awk -F= '/^username=/ {print $2}')
+  GH_USER=${GH_USER:-$(printf '%s\n' "$creds" | awk -F= '/^username=/ {print $2}' || git config user.name 2>/dev/null || echo "unknown-user")}
   GH_TOKEN=$(printf '%s\n' "$creds" | awk -F= '/^password=/ {print $2}')
+  echo "$GH_USER"
   : "${GH_TOKEN:?Could not retrieve GitHub token from credential helper}"
+else
+  GH_USER=${GH_USER:-$(git config user.name 2>/dev/null || echo "unknown-user")}
 fi
 
 API_URL="https://api.github.com"
@@ -123,7 +126,7 @@ while IFS= read -r line || [ -n "$line" ]; do
 
     printf "Creating repo %s/%s ... " "$owner" "$repo"
     http_code=$(
-      curl -s -w "%{http_code}" \
+      curl -s -o /dev/null -w "%{http_code}" \
         -H "$AUTH_HDR" \
         -H "Content-Type: application/json" \
         -d "$payload" \
@@ -135,9 +138,10 @@ while IFS= read -r line || [ -n "$line" ]; do
       echo "failed (HTTP $http_code)."
       continue
     fi
+
   else
     echo "Error checking $owner/$repo (HTTP $status)."
-    continue
+    continue|>
   fi
 
   # if a branch was requested, ensure it exists
