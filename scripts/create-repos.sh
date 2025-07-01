@@ -38,12 +38,10 @@ done
 
 # ── CREDENTIALS WITH FALLBACK ────────────────────────────────────────────────────
 if [ -z "${GH_TOKEN-}" ]; then
-  # first try api.github.com
   creds=$(
     printf 'protocol=https\nhost=api.github.com\n\n' \
       | git credential fill
   )
-  # if no password found, fall back to github.com
   if ! printf '%s\n' "$creds" | grep -q '^password='; then
     creds=$(
       printf 'protocol=https\nhost=github.com\n\n' \
@@ -72,14 +70,25 @@ while IFS= read -r line || [ -n "$line" ]; do
   owner=${repo_path%%/*}
   repo=${repo_path##*/}
 
-  # determine endpoint: user vs org
+  # ── EXISTENCE CHECK ──────────────────────────────────────────────────────────
+  check_url="$API_URL/repos/$owner/$repo"
+  status=$(curl -s -o /dev/null -w "%{http_code}" -H "$AUTH_HDR" "$check_url")
+  if [ "$status" -eq 200 ]; then
+    echo "Exists: $owner/$repo"
+    continue
+  elif [ "$status" -ne 404 ]; then
+    echo "Error checking $owner/$repo (HTTP $status)"
+    continue
+  fi
+
+  # ── DETERMINE CREATE ENDPOINT ────────────────────────────────────────────────
   if [ "$owner" = "$GH_USER" ]; then
     CREATE_URL="$API_URL/user/repos"
   else
     CREATE_URL="$API_URL/orgs/$owner/repos"
   fi
 
-  # build JSON payload (always include private flag)
+  # ── BUILD PAYLOAD & CREATE ───────────────────────────────────────────────────
   if $PRIVATE_FLAG; then
     payload="{\"name\":\"$repo\",\"private\":true}"
   else
