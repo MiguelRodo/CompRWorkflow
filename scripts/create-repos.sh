@@ -35,31 +35,24 @@ done
 [ -f "$REPOS_FILE" ] || { echo "Error: '$REPOS_FILE' not found." >&2; exit 1; }
 
 # ── CREDENTIALS WITH FALLBACK ────────────────────────────────────────────────────
-if [ -z "${GH_TOKEN-}" ]; then
+if [ -z "${GH_TOKEN-}" ] || [ -z "${GH_USER-}" ]; then
   creds=$(
-    printf 'protocol=https\nhost=api.github.com\n\n' \
-      | git credential fill
+    printf 'url=https://github.com\n\n' \
+      | git -c credential.interactive=false credential fill
   )
-  if ! printf '%s\n' "$creds" | grep -q '^password='; then
-    creds=$(
-      printf 'protocol=https\nhost=github.com\n\n' \
-        | git credential fill
-    )
-  fi
-
-  GH_USER=${GH_USER:-$(printf '%s\n' "$creds" | awk -F= '/^username=/ {print $2}' || git config user.name 2>/dev/null || echo "unknown-user")}
-  GH_TOKEN=$(printf '%s\n' "$creds" | awk -F= '/^password=/ {print $2}')
-  echo "$GH_USER"
-  : "${GH_TOKEN:?Could not retrieve GitHub token from credential helper}"
-else
-  GH_USER=${GH_USER:-$(git config user.name 2>/dev/null || echo "unknown-user")}
+  [ -z "${GH_USER-}" ] && \
+    GH_USER=$(printf '%s\n' "$creds" | awk -F= '/^username=/ {print $2}')
+  [ -z "${GH_TOKEN-}" ] && \
+    GH_TOKEN=$(printf '%s\n' "$creds" | awk -F= '/^password=/ {print $2}')
+  : "${GH_USER:?Could not retrieve GitHub username}"
+  : "${GH_TOKEN:?Could not retrieve GitHub token}"
 fi
 
 API_URL="https://api.github.com"
 AUTH_HDR="Authorization: token $GH_TOKEN"
 if $PRIVATE_FLAG; then JSON_PRIVATE=true; else JSON_PRIVATE=false; fi
 
-# ── tiny helper to pull a field out of a repo JSON ─────────────────────────────
+# ── Helpers for branch creation ────────────────────────────────────────────────
 api_get_field() {
   url=$1; field=$2
   curl -s -H "$AUTH_HDR" "$url" \
@@ -68,16 +61,14 @@ api_get_field() {
     | sed -E "s/.*\"$field\": *\"([^\"]+)\".*/\1/"
 }
 
-# ── create a new branch by pointing at default-branch SHA ───────────────────────
 create_branch() {
   owner=$1; repo=$2; newbr=$3
   defbr=$( api_get_field "$API_URL/repos/$owner/$repo" default_branch )
   defsha=$(
     curl -s -H "$AUTH_HDR" \
       "$API_URL/repos/$owner/$repo/git/ref/heads/$defbr" \
-      | grep '"sha"' \
-      | head -n1 \
-      | sed -E 's/.*"sha": *"([^"]+)".*/\1/'
+    | grep '"sha"' | head -n1 \
+    | sed -E 's/.*"sha": *"([^"]+)".*/\1/'
   )
   curl -s -o /dev/null -w "%{http_code}" -X POST \
     -H "$AUTH_HDR" -H "Content-Type: application/json" \
@@ -89,19 +80,33 @@ create_branch() {
 while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in ''|\#*) continue ;; esac
 
-  # split out owner/repo and optional @branch
   repo_spec=${line%%[[:space:]]*}
   repo_path=${repo_spec%@*}
-
   owner=${repo_path%%/*}
   repo=${repo_path##*/}
+  case "$repo_spec" in *@*) branch=${repo_spec##*@} ;; *) branch="" ;; esac
 
-  case "$repo_spec" in
-    *@*) branch=${repo_spec##*@} ;;
-    *)   branch=""          ;;
+  # 1) Determine owner type (User vs Organization)
+  owner_info=$(curl -s -H "$AUTH_HDR" "$API_URL/users/$owner")
+  owner_type=$(printf '%s\n' "$owner_info" \
+    | grep '"type"' \
+    | head -n1 \
+    | sed -E 's/.*"type": *"([^"]+)".*/\1/')
+
+  case "$owner_type" in
+    Organization)
+      create_url="$API_URL/orgs/$owner/repos"
+      ;;
+    User)
+      create_url="$API_URL/user/repos"
+      ;;
+    *)
+      echo "Error: could not determine owner type for '$owner'." 
+      continue
+      ;;
   esac
 
-  # check if repo exists
+  # 2) Check repo existence
   status=$(
     curl -s -o /dev/null -w "%{http_code}" \
       -H "$AUTH_HDR" \
@@ -110,14 +115,7 @@ while IFS= read -r line || [ -n "$line" ]; do
   if [ "$status" -eq 200 ]; then
     echo "Exists: $owner/$repo"
   elif [ "$status" -eq 404 ]; then
-    # choose create endpoint dynamically
-    if [ "$owner" = "$GH_USER" ]; then
-      create_url="$API_URL/user/repos"
-    else
-      create_url="$API_URL/orgs/$owner/repos"
-    fi
-
-    # auto_init only if we intend to push a custom branch
+    # build payload (auto_init if we’ll push a branch later)
     if [ -n "$branch" ]; then
       payload="{\"name\":\"$repo\",\"private\":$JSON_PRIVATE,\"auto_init\":true}"
     else
@@ -138,13 +136,12 @@ while IFS= read -r line || [ -n "$line" ]; do
       echo "failed (HTTP $http_code)."
       continue
     fi
-
   else
     echo "Error checking $owner/$repo (HTTP $status)."
-    continue|>
+    continue
   fi
 
-  # if a branch was requested, ensure it exists
+  # 3) Ensure branch exists
   if [ -n "$branch" ]; then
     ref_status=$(
       curl -s -o /dev/null -w "%{http_code}" \
@@ -165,4 +162,5 @@ while IFS= read -r line || [ -n "$line" ]; do
       echo "Error checking branch $branch (HTTP $ref_status)."
     fi
   fi
+
 done < "$REPOS_FILE"

@@ -1,0 +1,28 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../r-workflow"
+    },
+    {
+      "path": "../dotfiles"
+    },
+    {
+      "path": "../CompTemplate"
+    },
+    {
+      "path": "../DevContainerFeatures"
+    },
+    {
+      "path": "../actions"
+    },
+    {
+      "path": "../projr"
+    },
+    {
+      "path": "../abcd"
+    }
+  ]
+}

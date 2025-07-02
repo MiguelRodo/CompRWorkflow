@@ -28,7 +28,63 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": ["quarto.quarto", "REditorSupport.r", "mathematic.vscode-pdf"]
+      "extensions": [
+        "quarto.quarto",
+        "REditorSupport.r",
+        "mathematic.vscode-pdf"
+      ]
+    },
+    "codespaces": {
+      "repositories": {
+        "MiguelRodo/r-workflow": {
+          "permissions": {
+            "actions": "write",
+            "contents": "write",
+            "packages": "read",
+            "workflows": "write"
+          }
+        },
+        "SATVILab/dotfiles": {
+          "permissions": {
+            "actions": "write",
+            "contents": "write",
+            "packages": "read",
+            "workflows": "write"
+          }
+        },
+        "SATVILab/CompTemplate": {
+          "permissions": {
+            "actions": "write",
+            "contents": "write",
+            "packages": "read",
+            "workflows": "write"
+          }
+        },
+        "MiguelRodo/DevContainerFeatures": {
+          "permissions": {
+            "actions": "write",
+            "contents": "write",
+            "packages": "read",
+            "workflows": "write"
+          }
+        },
+        "SATVILab/actions": {
+          "permissions": {
+            "actions": "write",
+            "contents": "write",
+            "packages": "read",
+            "workflows": "write"
+          }
+        },
+        "SATVILab/projr": {
+          "permissions": {
+            "actions": "write",
+            "contents": "write",
+            "packages": "read",
+            "workflows": "write"
+          }
+        }
+      }
     }
   }
 }

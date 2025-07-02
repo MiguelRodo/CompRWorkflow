@@ -6,3 +6,20 @@
 ^repos-to-clone-xethub\.list$
 ^\.Renviron$
 ^EntireProject\.code-workspace$
+# Start of projr section: do not edit by hand (update with projr_ignore_auto())
+^_raw_data/
+^_raw_data$
+^_tmp/
+^_tmp$
+^_output/
+^_output$
+^entire-project\.code-workspace$
+^EntireProject\.code-workspace$
+^\.devcontainer/
+^\.devcontainer$
+^\.github/
+^\.github$
+^\.vscode/
+^\.vscode$
+# End of projr section
+

@@ -3,7 +3,7 @@
 # SATVILab/projr
 # Append @<branch> if you want to clone a specific branch, for example:
 # SATVILab/projr@dev
-# MiguelRodo/r-workflow
+MiguelRodo/r-workflow
 SATVILab/dotfiles
 SATVILab/CompTemplate
 MiguelRodo/DevContainerFeatures
