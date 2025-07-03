@@ -228,7 +228,7 @@ update_workspace_file() {
 }
 
 main() {
-  if [ ! -f "repos.list" ] && [ -f "repos.list" ]; then
+  if [ ! -f "repos.list" ] && [ -f "repos-to-clone.list" ]; then
     local repos_list_file="repos.list"
   else
     local repos_list_file="repos.list"
