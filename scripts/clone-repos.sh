@@ -17,7 +17,7 @@ usage() {
   cat <<EOF
 Usage: $0 [--file <repo-list>]
 
-Clone all repositories listed in <repo-list> (default: repos-to-clone.list).
+Clone all repositories listed in <repo-list> (default: repos.list).
 Format per line: [repo_spec] [target_directory]
 - repo_spec: owner/repo[@branch] OR https://host/owner/repo[@branch]
 - target_directory: (optional) folder to clone into (relative to CWD).
@@ -30,7 +30,11 @@ EOF
 }
 
 parse_args() {
-  REPOS_FILE="repos-to-clone.list"
+  if [ ! -f "repos.list" ] && [ -f "repos-to-clone.list" ]; then
+    REPOS_FILE="repos-to-clone.list"
+  else
+    REPOS_FILE="repos.list"
+  fi
   while [ "$#" -gt 0 ]; do
     case "$1" in
       -f|--file)

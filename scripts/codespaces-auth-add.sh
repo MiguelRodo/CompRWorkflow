@@ -10,7 +10,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEVFILE="$PROJECT_ROOT/.devcontainer/devcontainer.json"
-REPOS_FILE="$PROJECT_ROOT/repos-to-clone.list"
+if [ ! -f "$PROJECT_ROOT/repos.list" ] && [ -f "$PROJECT_ROOT/repos-to-clone.list" ]; then
+  REPOS_FILE="$PROJECT_ROOT/repos-to-clone.list"
+else
+  REPOS_FILE="$PROJECT_ROOT/repos.list"
+fi
 REPOS_OVERRIDE=""
 PERMISSIONS="default"    # default | all | contents
 DRY_RUN=0
@@ -24,7 +28,7 @@ usage(){
 Usage: $0 [options]
 
 Options:
-  -f, --file <path>        Read repos from <path> (default: repos-to-clone.list)
+  -f, --file <path>        Read repos from <path> (default: repos.list)
   -r, --repo <a,b,c…>      Comma-separated repos; overrides the file
   --permissions all        Use "permissions":"write-all"
   --permissions contents   Use "permissions":{"contents":"write"}

@@ -19,7 +19,7 @@ usage() {
 Usage: $0 [options]
 
 Options:
-  -f, --file <file>        Repo list file (default: repos-to-clone.list)
+  -f, --file <file>        Repo list file (default: repos.list)
   -i, --include <names>    Comma-separated list of repo names to INCLUDE
   -e, --exclude <names>    Comma-separated list of repo names to EXCLUDE
   -n, --dry-run            Show what would be done, but don't execute
@@ -40,7 +40,11 @@ EOF
 
 # --- parse arguments ---
 parse_args() {
-  REPOS_FILE="repos-to-clone.list"
+  if [ ! -f "repos.list" ] && [ -f "repos-to-clone.list" ]; then
+    REPOS_FILE="repos-to-clone.list"
+  else
+    REPOS_FILE="repos.list"
+  fi
   DRY_RUN=false
   VERBOSE=false
   INCLUDE_RAW=""

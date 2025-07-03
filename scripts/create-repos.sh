@@ -5,13 +5,17 @@
 set -euo pipefail
 
 # ── CONFIG & USAGE ─────────────────────────────────────────────────────────────
-REPOS_FILE="repos-to-clone.list"
+if [ ! -f "repos.list" ] && [ -f "repos-to-clone.list" ]; then
+  REPOS_FILE="repos-to-clone.list"
+else
+  REPOS_FILE="repos.list"
+fi
 
 usage() {
   cat <<EOF
 Usage: $0 [-f <repo-list>] [-p|--public]
 
-  -f FILE         read lines from FILE (default: repos-to-clone.list)
+  -f FILE         read lines from FILE (default: repos.list)
   -p, --public    create repos as public (default: private)
   -h, --help      show this message and exit
 

@@ -7,7 +7,7 @@ usage() {
 Usage: $0 [options]
 
 Options:
-  -f, --file <file>       Specify the repository list file (default: 'repos-to-clone.list').
+  -f, --file <file>       Specify the repository list file (default: 'repos.list').
   -h, --help              Display this help message.
 
 Each line in the repository list file can be in the following formats:
@@ -228,7 +228,11 @@ update_workspace_file() {
 }
 
 main() {
-  local repos_list_file="repos-to-clone.list"
+  if [ ! -f "repos.list" ] && [ -f "repos.list" ]; then
+    local repos_list_file="repos.list"
+  else
+    local repos_list_file="repos.list"
+  fi
   # Argument parsing
   while [ "$#" -gt 0 ]; do
     case "$1" in

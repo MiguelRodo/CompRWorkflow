@@ -6,8 +6,11 @@ set -euo pipefail
 
 # — Paths & defaults —
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
-REPOS_FILE="$PROJECT_ROOT/repos-to-clone.list"
-
+if [ ! -f "$PROJECT_ROOT/repos.list" ] && [ -f "$PROJECT_ROOT/repos-to-clone.list" ]; then
+  REPOS_FILE="$PROJECT_ROOT/repos-to-clone.list"
+else
+  REPOS_FILE="$PROJECT_ROOT/repos.list"
+fi
 PUBLIC_FLAG=false
 PERMISSIONS_OPT=""
 TOOL_OPT=""
@@ -22,7 +25,7 @@ usage() {
 Usage: $0 [options]
 
 Options:
-  -f, --file <file>           Use <file> instead of repos-to-clone.list
+  -f, --file <file>           Use <file> instead of repos.list
   -p, --public                Create repos as public (default is private)
   --permissions <all|contents> Pass through to codespaces-auth-add.sh
   -t, --tool <jq|python|…>    Force tool for codespaces-auth-add.sh

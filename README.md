@@ -37,7 +37,7 @@ You may use this repository:
 This repo supports easy setup of a multi-repository workspace on Linux, macOS or Windows.
 
 1. **Specify repositories**  
-   Edit `repos-to-clone.list` in the root. See its header for format details.
+   Edit `repos.list` in the root. See its header for format details.
 
 2. **Clone repositories**  
    ```bash
@@ -79,7 +79,7 @@ The devcontainer includes:
 * **Quarto** (with TinyTeX)
 * Common Ubuntu packages for R/data science
 * **radian**, a modern R console
-* A **repos** feature to clone repos specified in `repos-to-clone.list`. Important primarily for GitHub Codespaces, as it overrides default `Codespaces` Git authentication. Ensure that the environment variable `GH_TOKEN` is available as a Codespaces secret, and that it has permissions to clone the specified repositories.
+* A **repos** feature to clone repos specified in `repos.list`. Important primarily for GitHub Codespaces, as it overrides default `Codespaces` Git authentication. Ensure that the environment variable `GH_TOKEN` is available as a Codespaces secret, and that it has permissions to clone the specified repositories.
 * A **config-r** feature that pre-installs packages from any `.devcontainer/renv/<dir>/renv.lock` into the global cache for faster container starts once built. Multiple `<dir>`s can be specified to install packages from multiple lockfiles.
 
 #### Automated builds
