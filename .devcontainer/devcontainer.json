@@ -20,7 +20,7 @@
       "pandocVersion": "auto"
     },
     "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-      "packages": "xvfb,vim,libcurl4-openssl-dev,libsecret-1-dev,jq"
+      "packages": "xvfb,vim,libcurl4-openssl-dev,libsecret-1-dev,jq,qpdf"
     },
     "ghcr.io/rocker-org/devcontainer-features/quarto-cli:1": {
       "installTinyTex": true
