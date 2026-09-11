@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Add Issues to Project Action
-        uses: MiguelRodo/actions/add-issues-to-project@v1.1.0
+        uses: MiguelRodo/actions/add-issues-to-project@ea8f8df62048a1ae56a1e99a58580a0ac05b8e41 # v2.43.0
         with:
           project_name: ${{ github.event.inputs.project_name }}
           project_owner: ${{ github.event.inputs.project_owner }}
