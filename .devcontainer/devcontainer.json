@@ -5,12 +5,12 @@
     "context": ".."
   },
   "features": {
-    "ghcr.io/MiguelRodo/DevContainerFeatures/repos:1": {},
+    "ghcr.io/MiguelRodo/DevContainerFeatures/repos:3": {},
     "ghcr.io/MiguelRodo/DevContainerFeatures/config-r:2": {
       "debug": true,
       "debugRenv": true
     },
-    "ghcr.io/rocker-org/devcontainer-features/r-rig:1": {
+    "ghcr.io/rocker-org/devcontainer-features/r-rig:2": {
       "installDevTools": false,
       "installREnv": true,
       "installRadian": true,
